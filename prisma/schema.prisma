@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+}
+
+model Asset {
+  id              String         @id @default(cuid())
+  symbol          String         @unique
+  name            String
+  type            AssetType
+  exchange        String
+  sector          String?
+  industry        String?
+  country         String?
+  ipoDate         DateTime?
+  marketCap       Float?
+  currentPrice    Float?
+  earliestPrice   Float?
+  multiplication  Float?
+  isActive        Boolean        @default(true)
+  updatedAt       DateTime       @updatedAt
+  createdAt       DateTime       @default(now())
+  metrics         AssetMetrics?
+  priceHistory    PriceHistory[]
+}
+
+model AssetMetrics {
+  id              String   @id @default(cuid())
+  assetId         String   @unique
+  asset           Asset    @relation(fields: [assetId], references: [id])
+  epsCurrentYear  Float?
+  epsNextYear     Float?
+  epsNext5Year    Float?
+  peForward       Float?
+  peg             Float?
+  cagrRevenue5Y   Float?
+  cagrRevenueFwd  Float?
+  revenue         Float?
+  roic            Float?
+  roe             Float?
+  debtToEquity    Float?
+  updatedAt       DateTime @updatedAt
+}
+
+model PriceHistory {
+  id        String   @id @default(cuid())
+  assetId   String
+  asset     Asset    @relation(fields: [assetId], references: [id])
+  date      DateTime
+  open      Float
+  high      Float
+  low      Float
+  close     Float
+  adjClose  Float
+  volume    BigInt
+
+  @@unique([assetId, date])
+  @@index([assetId, date])
+}
+
+enum AssetType {
+  STOCK
+  ETF
+  CRYPTO
+}
