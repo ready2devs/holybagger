@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { createChart, ColorType, ISeriesApi } from 'lightweight-charts';
+import { createChart, ColorType, CandlestickSeries } from 'lightweight-charts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { formatCurrency } from '@/lib/utils/formatters';
@@ -75,7 +75,7 @@ export function PriceChart({ historicalData, isLoading }: PriceChartProps) {
       },
     });
 
-    const candlestickSeries = chart.addCandlestickSeries({
+    const candlestickSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#10b981', // accent-emerald
       downColor: '#ef4444', // accent-red
       borderVisible: false,

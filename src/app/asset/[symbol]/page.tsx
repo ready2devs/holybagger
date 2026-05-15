@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { AssetHeader } from '@/components/asset/AssetHeader';
 import { PriceChart } from '@/components/asset/PriceChart';
@@ -10,8 +11,9 @@ import { Button } from '@/components/ui/Button';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
-export default function AssetPage({ params }: { params: { symbol: string } }) {
-  const symbol = params.symbol.toUpperCase();
+export default function AssetPage() {
+  const params = useParams<{ symbol: string }>();
+  const symbol = (params.symbol || '').toUpperCase();
   
   const { data, isLoading, isError } = useQuery({
     queryKey: ['asset', symbol],

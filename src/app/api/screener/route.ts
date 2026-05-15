@@ -1,8 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getStockScreener, getProfile, getHistoricalPriceFull } from '@/lib/api/fmp';
-import prisma from '@/lib/db/prisma';
-import { calculateMultiplication } from '@/lib/utils/calculations';
-import { AssetType } from '@prisma/client';
+
+// Mock data for UI demonstration while DB is not seeded
+const MOCK_ASSETS = [
+  { id: '1', symbol: 'NVDA', name: 'NVIDIA Corporation', type: 'STOCK', sector: 'Information Technology', exchange: 'NASDAQ', country: 'US', currentPrice: 850.50, multiplication: 285.4, marketCap: 2100000000000, isActive: true },
+  { id: '2', symbol: 'TSLA', name: 'Tesla Inc.', type: 'STOCK', sector: 'Consumer Discretionary', exchange: 'NASDAQ', country: 'US', currentPrice: 170.50, multiplication: 120.5, marketCap: 540000000000, isActive: true },
+  { id: '3', symbol: 'BTCUSD', name: 'Bitcoin', type: 'CRYPTO', sector: 'Crypto', exchange: 'CRYPTO', country: 'GLOBAL', currentPrice: 65000.00, multiplication: 150.0, marketCap: 1300000000000, isActive: true },
+  { id: '4', symbol: 'AMD', name: 'Advanced Micro Devices', type: 'STOCK', sector: 'Information Technology', exchange: 'NASDAQ', country: 'US', currentPrice: 165.20, multiplication: 85.2, marketCap: 265000000000, isActive: true },
+  { id: '5', symbol: 'MELI', name: 'MercadoLibre Inc.', type: 'STOCK', sector: 'Consumer Discretionary', exchange: 'NASDAQ', country: 'AR', currentPrice: 1550.00, multiplication: 65.2, marketCap: 78000000000, isActive: true },
+  { id: '6', symbol: 'AAPL', name: 'Apple Inc.', type: 'STOCK', sector: 'Information Technology', exchange: 'NASDAQ', country: 'US', currentPrice: 175.80, multiplication: 45.6, marketCap: 2700000000000, isActive: true },
+  { id: '7', symbol: 'MSFT', name: 'Microsoft Corp.', type: 'STOCK', sector: 'Information Technology', exchange: 'NASDAQ', country: 'US', currentPrice: 420.30, multiplication: 35.8, marketCap: 3100000000000, isActive: true },
+  { id: '8', symbol: 'QQQ', name: 'Invesco QQQ Trust', type: 'ETF', sector: 'Technology', exchange: 'NASDAQ', country: 'US', currentPrice: 440.20, multiplication: 15.5, marketCap: 250000000000, isActive: true },
+  { id: '9', symbol: 'AMZN', name: 'Amazon.com Inc.', type: 'STOCK', sector: 'Consumer Discretionary', exchange: 'NASDAQ', country: 'US', currentPrice: 185.60, multiplication: 220.0, marketCap: 1900000000000, isActive: true },
+  { id: '10', symbol: 'ETHUSD', name: 'Ethereum', type: 'CRYPTO', sector: 'Crypto', exchange: 'CRYPTO', country: 'GLOBAL', currentPrice: 3500.00, multiplication: 4200.0, marketCap: 420000000000, isActive: true },
+  { id: '11', symbol: 'BABA', name: 'Alibaba Group', type: 'STOCK', sector: 'Consumer Discretionary', exchange: 'NYSE', country: 'CN', currentPrice: 85.40, multiplication: 5.2, marketCap: 215000000000, isActive: true },
+  { id: '12', symbol: 'TSM', name: 'Taiwan Semiconductor', type: 'STOCK', sector: 'Information Technology', exchange: 'NYSE', country: 'TW', currentPrice: 140.50, multiplication: 28.5, marketCap: 725000000000, isActive: true },
+];
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -17,58 +29,35 @@ export async function GET(request: NextRequest) {
   const sortOrder = searchParams.get('sortOrder') || 'desc';
 
   try {
-    // 1. In a real app with high rate limits, we would query FMP here.
-    // Given the 250 req/day limit, we'll query the database first to see if we have 
-    // any assets matching the criteria that were updated recently.
-    
-    // For MVP phase, let's implement the DB query logic directly 
-    // and rely on a background seed script to populate the DB, OR we fetch FMP if DB is empty.
+    // TODO: When DB is seeded, uncomment prisma import and DB-first logic.
+    // For now, serve mock data to demonstrate the UI.
 
-    const whereClause: any = {
-      isActive: true,
-      multiplication: { gte: minMultiplier }
-    };
+    let filtered = MOCK_ASSETS.filter(a => a.multiplication >= minMultiplier);
 
-    if (type !== 'ALL') whereClause.type = type as AssetType;
-    if (sector !== 'ALL') whereClause.sector = sector;
-    if (exchange !== 'ALL') whereClause.exchange = exchange;
-    if (country !== 'ALL') whereClause.country = country;
+    if (type !== 'ALL') filtered = filtered.filter(a => a.type === type);
+    if (sector !== 'ALL') filtered = filtered.filter(a => a.sector === sector);
+    if (exchange !== 'ALL') filtered = filtered.filter(a => a.exchange === exchange);
+    if (country !== 'ALL') filtered = filtered.filter(a => a.country === country);
 
-    // Check DB first
-    const totalCount = await prisma.asset.count({ where: whereClause });
+    // Sort
+    filtered.sort((a, b) => {
+      const aVal = (a as any)[sortBy] ?? 0;
+      const bVal = (b as any)[sortBy] ?? 0;
+      return sortOrder === 'desc' ? bVal - aVal : aVal - bVal;
+    });
 
-    // If we have data, return it
-    if (totalCount > 0) {
-      const assets = await prisma.asset.findMany({
-        where: whereClause,
-        orderBy: {
-          [sortBy]: sortOrder
-        },
-        skip: (page - 1) * limit,
-        take: limit,
-      });
+    // Paginate
+    const total = filtered.length;
+    const start = (page - 1) * limit;
+    const paged = filtered.slice(start, start + limit);
 
-      return NextResponse.json({
-        data: assets,
-        total: totalCount,
-        page,
-        totalPages: Math.ceil(totalCount / limit),
-        cached: true,
-      });
-    }
-
-    // If DB is empty, this is where we'd call FMP.
-    // However, calling FMP stock-screener + historical prices for 50+ stocks 
-    // would instantly burn the 250 req/day limit.
-    // For the MVP, if the DB is empty, we'll return an empty list 
-    // and instruct the user to run the seed script.
     return NextResponse.json({
-      data: [],
-      total: 0,
-      page: 1,
-      totalPages: 0,
+      data: paged,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
       cached: false,
-      message: "No data found. Please run the seed script to populate the database from FMP."
+      message: "Using mock data for demonstration. Run seed script for real data."
     });
 
   } catch (error) {
